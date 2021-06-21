@@ -25,6 +25,16 @@
                     </select>
                 </div>
 
+                @if(count($tags))
+                    <div id="tagFilterSelector" class="mr-2">
+                        <select multiple="" class="selectpicker form-control form-control-sm" name="tags[]" data-width="auto">
+                            @foreach($tags as $tagId => $tagName)
+                                <option value="{{ $tagId }}" @if(in_array($tagId, request()->get('tags') ?? [])) selected @endif>{{ $tagName }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
+
                 <button type="submit" class="btn btn-light btn-md">{{ __('Search') }}</button>
 
                 @if(request()->anyFilled(['name', 'status']))
@@ -49,8 +59,8 @@
 
                 </div>
             </div>
-            <a class="btn btn-light btn-md mr-2" href="{{ route('sendportal.segments.index') }}">
-                <i class="fa fa-tag color-gray-400 mr-1"></i> {{ __('Segments') }}
+            <a class="btn btn-light btn-md mr-2" href="{{ route('sendportal.tags.index') }}">
+                <i class="fa fa-tag color-gray-400 mr-1"></i> {{ __('Tags') }}
             </a>
             <a class="btn btn-primary btn-md btn-flat" href="{{ route('sendportal.subscribers.create') }}">
                 <i class="fa fa-plus mr-1"></i> {{ __('New Subscriber') }}
@@ -65,6 +75,7 @@
                 <tr>
                     <th>{{ __('Email') }}</th>
                     <th>{{ __('Name') }}</th>
+                    <th>{{ __('Tags') }}</th>
                     <th>{{ __('Created') }}</th>
                     <th>{{ __('Status') }}</th>
                     <th>{{ __('Actions') }}</th>
@@ -79,6 +90,12 @@
                             </a>
                         </td>
                         <td>{{ $subscriber->full_name }}</td>
+                        <td>
+                            @forelse($subscriber->tags as $tag)
+                                <span class="badge badge-light">{{ $tag->name }}</span>
+                            @empty
+                                -
+                            @endforelse
                         <td><span
                                 title="{{ $subscriber->created_at }}">{{ $subscriber->created_at->diffForHumans() }}</span>
                         </td>
@@ -95,7 +112,8 @@
                                 @method('DELETE')
                                 <a href="{{ route('sendportal.subscribers.edit', $subscriber->id) }}"
                                    class="btn btn-xs btn-light">{{ __('Edit') }}</a>
-                                <button type="submit" class="btn btn-xs btn-light delete-subscriber">{{ __('Delete') }}</button>
+                                <button type="submit"
+                                        class="btn btn-xs btn-light delete-subscriber">{{ __('Delete') }}</button>
                             </form>
                         </td>
                     </tr>
@@ -122,7 +140,7 @@
 
                 let confirmDelete = confirm('Are you sure you want to permanently delete this subscriber and all associated data?');
 
-                if(confirmDelete) {
+                if (confirmDelete) {
                     element.closest('form').submit();
                 }
             });
@@ -130,3 +148,11 @@
     </script>
 
 @endsection
+
+@push('css')
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.12/dist/css/bootstrap-select.min.css">
+@endpush
+
+@push('js')
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.12/dist/js/bootstrap-select.min.js"></script>
+@endpush

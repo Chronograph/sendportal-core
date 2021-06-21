@@ -1,12 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Unit\Models;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Sendportal\Base\Facades\Sendportal;
 use Sendportal\Base\Models\Campaign;
 use Sendportal\Base\Models\Message;
 use Sendportal\Base\Models\Subscriber;
-use Sendportal\Base\Models\Workspace;
+use Sendportal\Base\Models\Tag;
 use Tests\TestCase;
 
 class CampaignTest extends TestCase
@@ -16,105 +19,280 @@ class CampaignTest extends TestCase
     /** @test */
     public function it_has_many_opens()
     {
-        [$workspace, $emailService] = $this->createUserWithWorkspaceAndEmailService();
-        $campaign = $this->createCampaign($workspace, $emailService);
+        // given
+        $emailService = $this->createEmailService();
+        $campaign = $this->createCampaign($emailService);
 
-        $openedMessages = $this->createOpenedMessage($workspace, $campaign, 3);
-        $this->createUnopenedMessage($workspace, $campaign, 2);
+        $openedMessages = $this->createOpenedMessage($campaign, 3);
+        $this->createUnopenedMessage($campaign, 2);
 
         $opens = $campaign->opens;
 
+        // then
         $opens->each(function ($open) use ($openedMessages) {
             $validMessages = $openedMessages->pluck('id')->toArray();
 
-            static::assertTrue(in_array($open->id, $validMessages));
+            static::assertContains($open->id, $validMessages);
         });
+
         static::assertEquals(3, $opens->count());
     }
 
     /** @test */
     public function the_unique_open_count_attribute_returns_the_number_of_unique_opens_for_a_campaign()
     {
-        [$workspace, $emailService] = $this->createUserWithWorkspaceAndEmailService();
+        // given
+        $emailService = $this->createEmailService();
 
-        $campaign = factory(Campaign::class)->states(['withContent', 'sent'])->create([
-            'workspace_id' => $workspace->id,
+        $campaign = Campaign::factory()->withContent()->sent()->create([
+            'workspace_id' => Sendportal::currentWorkspaceId(),
             'email_service_id' => $emailService->id,
         ]);
-        $this->createOpenedMessage($workspace, $campaign, 3);
 
+        $this->createOpenedMessage($campaign, 3);
+
+        // then
         static::assertEquals(3, $campaign->unique_open_count);
     }
 
     /** @test */
     public function the_total_open_count_attribute_returns_the_total_number_of_opens_for_a_campaign()
     {
-        [$workspace, $emailService] = $this->createUserWithWorkspaceAndEmailService();
+        // given
+        $emailService = $this->createEmailService();
 
-        $campaign = $this->createCampaign($workspace, $emailService);
-        $this->createOpenedMessage($workspace, $campaign, 3, [
+        $campaign = $this->createCampaign($emailService);
+
+        $this->createOpenedMessage($campaign, 3, [
             'open_count' => 5
         ]);
 
+        // then
         static::assertEquals(15, $campaign->total_open_count);
     }
 
     /** @test */
     public function it_has_many_clicks()
     {
-        [$workspace, $emailService] = $this->createUserWithWorkspaceAndEmailService();
+        // given
+        $emailService = $this->createEmailService();
 
-        $campaign = $this->createCampaign($workspace, $emailService);
-        $clickedMessages = $this->createClickedMessage($workspace, $campaign, 3);
-        $this->createUnclickedMessage($workspace, $campaign, 2);
+        $campaign = $this->createCampaign($emailService);
+        $clickedMessages = $this->createClickedMessage($campaign, 3);
+        $this->createUnclickedMessage($campaign, 2);
 
         $clicks = $campaign->clicks;
 
+        // then
         $clicks->each(function ($click) use ($clickedMessages) {
             $validMessages = $clickedMessages->pluck('id')->toArray();
 
-            static::assertTrue(in_array($click->id, $validMessages));
+            static::assertContains($click->id, $validMessages);
         });
+
         static::assertEquals(3, $clicks->count());
     }
 
     /** @test */
     public function the_unique_click_count_attribute_returns_the_number_of_unique_clicks_for_a_campaign()
     {
-        [$workspace, $emailService] = $this->createUserWithWorkspaceAndEmailService();
+        // given
+        $emailService = $this->createEmailService();
 
-        $campaign = $this->createCampaign($workspace, $emailService);
-        $this->createClickedMessage($workspace, $campaign, 3);
+        $campaign = $this->createCampaign($emailService);
 
+        $this->createClickedMessage($campaign, 3);
+
+        // then
         static::assertEquals(3, $campaign->unique_click_count);
     }
 
     /** @test */
     public function the_total_click_count_attribute_returns_the_total_number_of_clicks_for_a_campaign()
     {
-        [$workspace, $emailService] = $this->createUserWithWorkspaceAndEmailService();
+        // given
+        $emailService = $this->createEmailService();
 
-        $campaign = $this->createCampaign($workspace, $emailService);
-        $this->createClickedMessage($workspace, $campaign, 3, [
+        $campaign = $this->createCampaign($emailService);
+
+        $this->createClickedMessage($campaign, 3, [
             'click_count' => 5,
         ]);
 
+        // then
         static::assertEquals(15, $campaign->total_click_count);
     }
 
-    /**
-     * @param Workspace $workspace
-     * @param Campaign $campaign
-     * @param int $quantity
-     * @param array $overrides
-     * @return mixed
-     */
-    protected function createOpenedMessage(Workspace $workspace, Campaign $campaign, int $quantity = 1, array $overrides = [])
+    /** @test */
+    public function the_cancelled_attribute_returns_true_if_the_campaign_is_cancelled()
+    {
+        // given
+        $campaign = Campaign::factory()->cancelled()->create();
+
+        // then
+        static::assertTrue($campaign->cancelled);
+    }
+
+    /** @test */
+    public function the_can_be_cancelled_method_returns_true_if_the_campaign_is_queued()
+    {
+        // given
+        /** @var Campaign $campaign */
+        $campaign = Campaign::factory()->queued()->create();
+
+        // then
+        static::assertTrue($campaign->canBeCancelled());
+    }
+
+    /** @test */
+    public function the_can_be_cancelled_method_returns_true_if_the_campaign_is_sending()
+    {
+        // given
+        /** @var Campaign $campaign */
+        $campaign = Campaign::factory()->sending()->create();
+
+        // then
+        static::assertTrue($campaign->canBeCancelled());
+    }
+
+    /** @test */
+    public function the_can_be_cancelled_method_returns_true_if_the_campaign_is_sent_and_saves_as_draft_and_not_all_drafts_have_been_sent()
+    {
+        // given
+        $campaign = Campaign::factory()->sent()->create([
+            'save_as_draft' => 1,
+            'send_to_all' => 1,
+        ]);
+
+        // Subscribers
+        Subscriber::factory()->count(5)->create([
+            'workspace_id' => $campaign->workspace_id,
+        ]);
+
+        // Draft Messages
+        Message::factory()->count(3)->pending()->create([
+            'workspace_id' => $campaign->workspace_id,
+            'source_id' => $campaign->id,
+        ]);
+
+        // Sent Messages
+        Message::factory()->count(2)->dispatched()->create([
+            'workspace_id' => $campaign->workspace_id,
+            'source_id' => $campaign->id,
+        ]);
+
+        // then
+        static::assertTrue($campaign->canBeCancelled());
+    }
+
+    /** @test */
+    public function the_can_be_cancelled_method_returns_false_if_the_campaign_is_sent_and_saves_as_draft_and_all_drafts_have_been_sent()
+    {
+        // given
+        $campaign = Campaign::factory()->sent()->create([
+            'save_as_draft' => 1,
+            'send_to_all' => 1,
+        ]);
+
+        $subscribers = Subscriber::factory()->count(5)->create([
+            'workspace_id' => $campaign->workspace_id,
+        ]);
+
+        // Sent Messages
+        Message::factory()->count($subscribers->count())->dispatched()->create([
+            'workspace_id' => $campaign->workspace_id,
+            'source_id' => $campaign->id,
+        ]);
+
+        // then
+        static::assertFalse($campaign->canBeCancelled());
+    }
+
+
+    /** @test */
+    public function the_all_drafts_created_method_returns_true_if_all_drafts_have_been_created()
+    {
+        // given
+        $campaign = Campaign::factory()->sending()->create([
+            'workspace_id' => Sendportal::currentWorkspaceId(),
+            'save_as_draft' => 1,
+        ]);
+
+        $tag = Tag::factory()->create([
+            'workspace_id' => Sendportal::currentWorkspaceId(),
+        ]);
+
+        $campaign->tags()->attach($tag->id);
+
+        $subscribers = Subscriber::factory()->count(5)->create([
+            'workspace_id' => Sendportal::currentWorkspaceId(),
+        ]);
+
+        $tag->subscribers()->attach($subscribers->pluck('id'));
+
+        // Message Drafts
+        Message::factory()->count($subscribers->count())->pending()->create([
+            'source_id' => $campaign->id,
+        ]);
+
+        // then
+        static::assertTrue($campaign->allDraftsCreated());
+    }
+
+    /** @test */
+    public function the_all_drafts_created_method_returns_false_if_all_drafts_have_not_been_created()
+    {
+        // given
+        $campaign = Campaign::factory()->sending()->create([
+            'workspace_id' => Sendportal::currentWorkspaceId(),
+            'save_as_draft' => 1,
+        ]);
+
+        $tag = Tag::factory()->create([
+            'workspace_id' => Sendportal::currentWorkspaceId(),
+        ]);
+
+        $campaign->tags()->attach($tag->id);
+
+        $subscribers = Subscriber::factory()->count(5)->create([
+            'workspace_id' => Sendportal::currentWorkspaceId(),
+        ]);
+
+        $tag->subscribers()->attach($subscribers->pluck('id'));
+
+        // Message Drafts
+        Message::factory()->count(3)->pending()->create([
+            'source_id' => $campaign->id,
+        ]);
+
+        // then
+        static::assertFalse($campaign->allDraftsCreated());
+    }
+
+    /** @test */
+    public function the_all_drafts_created_method_returns_true_if_the_campaign_does_not_save_as_draft()
+    {
+        // given
+        $campaign = Campaign::factory()->sending()->create([
+            'workspace_id' => Sendportal::currentWorkspaceId(),
+            'save_as_draft' => 0,
+            'send_to_all' => 1,
+        ]);
+
+        Subscriber::factory()->count(5)->create([
+            'workspace_id' => Sendportal::currentWorkspaceId(),
+        ]);
+
+        // then
+        static::assertTrue($campaign->allDraftsCreated());
+    }
+
+    protected function createOpenedMessage(Campaign $campaign, int $quantity = 1, array $overrides = [])
     {
         $data = array_merge([
-            'workspace_id' => $workspace->id,
-            'subscriber_id' => factory(Subscriber::class)->create([
-                'workspace_id' => $workspace->id,
+            'workspace_id' => Sendportal::currentWorkspaceId(),
+            'subscriber_id' => Subscriber::factory()->create([
+                'workspace_id' => Sendportal::currentWorkspaceId(),
             ]),
             'source_type' => Campaign::class,
             'source_id' => $campaign->id,
@@ -124,22 +302,15 @@ class CampaignTest extends TestCase
             'opened_at' => now(),
         ], $overrides);
 
-        return factory(Message::class, $quantity)->create($data);
+        return Message::factory()->count($quantity)->create($data);
     }
 
-    /**
-     * @param Workspace $workspace
-     * @param Campaign $campaign
-     * @param int $count
-     *
-     * @return mixed
-     */
-    protected function createUnopenedMessage(Workspace $workspace, Campaign $campaign, int $count)
+    protected function createUnopenedMessage(Campaign $campaign, int $count)
     {
-        return factory(Message::class, $count)->create([
-            'workspace_id' => $workspace->id,
-            'subscriber_id' => factory(Subscriber::class)->create([
-                'workspace_id' => $workspace->id,
+        return Message::factory()->count($count)->create([
+            'workspace_id' => Sendportal::currentWorkspaceId(),
+            'subscriber_id' => Subscriber::factory()->create([
+                'workspace_id' => Sendportal::currentWorkspaceId(),
             ]),
             'source_type' => Campaign::class,
             'source_id' => $campaign->id,
@@ -149,19 +320,12 @@ class CampaignTest extends TestCase
         ]);
     }
 
-    /**
-     * @param Workspace $workspace
-     * @param Campaign $campaign
-     * @param int $quantity
-     * @param array $overrides
-     * @return mixed
-     */
-    protected function createClickedMessage(Workspace $workspace, Campaign $campaign, int $quantity = 1, array $overrides = [])
+    protected function createClickedMessage(Campaign $campaign, int $quantity = 1, array $overrides = [])
     {
         $data = array_merge([
-            'workspace_id' => $workspace->id,
-            'subscriber_id' => factory(Subscriber::class)->create([
-                'workspace_id' => $workspace->id,
+            'workspace_id' => Sendportal::currentWorkspaceId(),
+            'subscriber_id' => Subscriber::factory()->create([
+                'workspace_id' => Sendportal::currentWorkspaceId(),
             ]),
             'source_type' => Campaign::class,
             'source_id' => $campaign->id,
@@ -171,22 +335,15 @@ class CampaignTest extends TestCase
             'clicked_at' => now(),
         ], $overrides);
 
-        return factory(Message::class, $quantity)->create($data);
+        return Message::factory()->count($quantity)->create($data);
     }
 
-    /**
-     * @param Workspace $workspace
-     * @param Campaign $campaign
-     * @param int $count
-     *
-     * @return mixed
-     */
-    protected function createUnclickedMessage(Workspace $workspace, Campaign $campaign, int $count)
+    protected function createUnclickedMessage(Campaign $campaign, int $count)
     {
-        return factory(Message::class, $count)->create([
-            'workspace_id' => $workspace->id,
-            'subscriber_id' => factory(Subscriber::class)->create([
-                'workspace_id' => $workspace->id,
+        return Message::factory()->count($count)->create([
+            'workspace_id' => Sendportal::currentWorkspaceId(),
+            'subscriber_id' => Subscriber::factory()->create([
+                'workspace_id' => Sendportal::currentWorkspaceId(),
             ]),
             'source_type' => Campaign::class,
             'source_id' => $campaign->id,

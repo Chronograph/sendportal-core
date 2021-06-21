@@ -6,9 +6,12 @@ namespace Sendportal\Base\Services\Messages;
 
 use Exception;
 use Illuminate\Support\Facades\Log;
+use Sendportal\Base\Models\Campaign;
+use Sendportal\Base\Models\CampaignStatus;
 use Sendportal\Base\Models\EmailService;
 use Sendportal\Base\Models\Message;
-use Sendportal\Base\Services\Content\MergeContent;
+use Sendportal\Base\Services\Content\MergeContentService;
+use Sendportal\Base\Services\Content\MergeSubjectService;
 
 class DispatchMessage
 {
@@ -18,27 +21,30 @@ class DispatchMessage
     /** @var RelayMessage */
     protected $relayMessage;
 
-    /** @var MergeContent */
-    protected $mergeContent;
+    /** @var MergeContentService */
+    protected $mergeContentService;
+
+    /** @var MergeSubjectService */
+    protected $mergeSubjectService;
 
     /** @var MarkAsSent */
     protected $markAsSent;
 
     public function __construct(
-        MergeContent $mergeContent,
+        MergeContentService $mergeContentService,
+        MergeSubjectService $mergeSubjectService,
         ResolveEmailService $resolveEmailService,
         RelayMessage $relayMessage,
         MarkAsSent $markAsSent
     ) {
+        $this->mergeContentService = $mergeContentService;
+        $this->mergeSubjectService = $mergeSubjectService;
         $this->resolveEmailService = $resolveEmailService;
         $this->relayMessage = $relayMessage;
-        $this->mergeContent = $mergeContent;
         $this->markAsSent = $markAsSent;
     }
 
     /**
-     * Returns the message_id from the email service
-     *
      * @throws Exception
      */
     public function handle(Message $message): ?string
@@ -48,6 +54,8 @@ class DispatchMessage
 
             return null;
         }
+
+        $message = $this->mergeSubject($message);
 
         $mergedContent = $this->getMergedContent($message);
 
@@ -63,11 +71,24 @@ class DispatchMessage
     }
 
     /**
+     * The message's subject is merged and persisted to the database
+     * so that we have a permanent record of the merged tags at the
+     * time of dispatch.
+     */
+    protected function mergeSubject(Message $message): Message
+    {
+        $message->subject = $this->mergeSubjectService->handle($message);
+        $message->save();
+
+        return $message;
+    }
+
+    /**
      * @throws Exception
      */
     protected function getMergedContent(Message $message): string
     {
-        return $this->mergeContent->handle($message);
+        return $this->mergeContentService->handle($message);
     }
 
     /**
@@ -102,14 +123,22 @@ class DispatchMessage
         return $this->markAsSent->handle($message, $messageId);
     }
 
-    /**
-     * Check that the message has not already been sent by getting
-     * a fresh db record
-     */
     protected function isValidMessage(Message $message): bool
     {
-        $message->refresh();
+        if ($message->sent_at) {
+            return false;
+        }
 
-        return !(bool)$message->sent_at;
+        if (!$message->isCampaign()) {
+            return true;
+        }
+
+        $campaign = Campaign::find($message->source_id);
+
+        if (!$campaign) {
+            return false;
+        }
+
+        return $campaign->status_id !== CampaignStatus::STATUS_CANCELLED;
     }
 }

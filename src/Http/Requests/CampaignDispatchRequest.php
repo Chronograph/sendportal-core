@@ -3,41 +3,34 @@
 namespace Sendportal\Base\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Sendportal\Base\Facades\Sendportal;
+use Sendportal\Base\Repositories\TagTenantRepository;
 
 class CampaignDispatchRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
-    public function authorize()
+    public function rules(): array
     {
-        return true;
-    }
+        /** @var TagTenantRepository $tags */
+        $tags = app(TagTenantRepository::class)->pluck(
+            Sendportal::currentWorkspaceId(),
+            'id'
+        );
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
-    public function rules()
-    {
         return [
-            'segments' => [
+            'tags' => [
                 'required_unless:recipients,send_to_all',
                 'array',
+                Rule::in($tags),
             ],
         ];
     }
 
-    /**
-     * @return array
-     */
-    public function messages()
+    public function messages(): array
     {
         return [
-            'segments.required_unless' => __('At least one segment must be selected')
+            'tags.required_unless' => __('At least one tag must be selected'),
+            'tags.in' => __('One or more of the tags is invalid.'),
         ];
     }
 }

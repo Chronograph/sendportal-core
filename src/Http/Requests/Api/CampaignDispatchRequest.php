@@ -6,6 +6,7 @@ namespace Sendportal\Base\Http\Requests\Api;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Validator;
+use Sendportal\Base\Facades\Sendportal;
 use Sendportal\Base\Models\Campaign;
 use Sendportal\Base\Models\CampaignStatus;
 use Sendportal\Base\Repositories\Campaigns\CampaignTenantRepositoryInterface;
@@ -34,11 +35,13 @@ class CampaignDispatchRequest extends FormRequest
     }
 
     /**
+     * @param array $relations
+     * @return Campaign
      * @throws \Exception
      */
-    public function getCampaign(): Campaign
+    public function getCampaign(array $relations = []): Campaign
     {
-        return $this->campaign = $this->campaigns->find($this->workspaceId, $this->id);
+        return $this->campaign = $this->campaigns->find(Sendportal::currentWorkspaceId(), $this->id, $relations);
     }
 
     public function rules()

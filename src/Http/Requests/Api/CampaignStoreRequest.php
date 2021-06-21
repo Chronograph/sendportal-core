@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Sendportal\Base\Http\Requests\Api;
 
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
+use Sendportal\Base\Facades\Sendportal;
 use Sendportal\Base\Http\Requests\CampaignStoreRequest as BaseCampaignStoreRequest;
 use Sendportal\Base\Models\Campaign;
 use Sendportal\Base\Models\CampaignStatus;
 use Sendportal\Base\Repositories\Campaigns\CampaignTenantRepositoryInterface;
+use Sendportal\Base\Repositories\TagTenantRepository;
 
 class CampaignStoreRequest extends BaseCampaignStoreRequest
 {
@@ -22,6 +25,7 @@ class CampaignStoreRequest extends BaseCampaignStoreRequest
         parent::__construct();
 
         $this->campaigns = $campaigns;
+        $this->workspaceId = Sendportal::currentWorkspaceId();
 
         Validator::extendImplicit('valid_status', function ($attribute, $value, $parameters, $validator) {
             return $this->campaign
@@ -40,18 +44,23 @@ class CampaignStoreRequest extends BaseCampaignStoreRequest
 
     public function rules(): array
     {
+        $tags = app(TagTenantRepository::class)->pluck(
+            $this->workspaceId,
+            'id'
+        );
+
         $rules = [
             'send_to_all' => [
                 'required',
                 'boolean',
             ],
-            'segments' => [
+            'tags' => [
                 'required_unless:send_to_all,1',
                 'array',
+                Rule::in($tags),
             ],
-            'segments.*' => [
+            'tags.*' => [
                 'integer',
-                'exists:segments,id'
             ],
             'scheduled_at' => [
                 'required',
@@ -71,6 +80,7 @@ class CampaignStoreRequest extends BaseCampaignStoreRequest
     {
         return [
             'valid_status' => __('A campaign cannot be updated if its status is not draft'),
+            'tags.in' => 'One or more of the tags is invalid.',
         ];
     }
 }

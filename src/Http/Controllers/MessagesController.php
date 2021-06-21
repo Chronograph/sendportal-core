@@ -7,9 +7,11 @@ namespace Sendportal\Base\Http\Controllers;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
+use Sendportal\Base\Facades\Sendportal;
 use Sendportal\Base\Models\Message;
 use Sendportal\Base\Repositories\Messages\MessageTenantRepositoryInterface;
-use Sendportal\Base\Services\Content\MergeContent;
+use Sendportal\Base\Services\Content\MergeContentService;
+use Sendportal\Base\Services\Content\MergeSubjectService;
 use Sendportal\Base\Services\Messages\DispatchMessage;
 
 class MessagesController extends Controller
@@ -20,17 +22,22 @@ class MessagesController extends Controller
     /** @var DispatchMessage */
     protected $dispatchMessage;
 
-    /** @var MergeContent */
-    protected $mergeContent;
+    /** @var MergeContentService */
+    protected $mergeContentService;
+
+    /** @var MergeSubjectService */
+    protected $mergeSubjectService;
 
     public function __construct(
         MessageTenantRepositoryInterface $messageRepo,
         DispatchMessage $dispatchMessage,
-        MergeContent $mergeContent
+        MergeContentService $mergeContentService,
+        MergeSubjectService $mergeSubjectService
     ) {
         $this->messageRepo = $messageRepo;
         $this->dispatchMessage = $dispatchMessage;
-        $this->mergeContent = $mergeContent;
+        $this->mergeContentService = $mergeContentService;
+        $this->mergeSubjectService = $mergeSubjectService;
     }
 
     /**
@@ -44,7 +51,7 @@ class MessagesController extends Controller
         $params['sent'] = true;
 
         $messages = $this->messageRepo->paginateWithSource(
-            auth()->user()->currentWorkspace()->id,
+            Sendportal::currentWorkspaceId(),
             'sent_atDesc',
             [],
             50,
@@ -62,7 +69,7 @@ class MessagesController extends Controller
     public function draft(): View
     {
         $messages = $this->messageRepo->paginateWithSource(
-            auth()->user()->currentWorkspace()->id,
+            Sendportal::currentWorkspaceId(),
             'created_atDesc',
             [],
             50,
@@ -79,11 +86,12 @@ class MessagesController extends Controller
      */
     public function show(int $messageId): View
     {
-        $message = $this->messageRepo->find(auth()->user()->currentWorkspace()->id, $messageId);
+        $message = $this->messageRepo->find(Sendportal::currentWorkspaceId(), $messageId);
 
-        $content = $this->mergeContent->handle($message);
+        $content = $this->mergeContentService->handle($message);
+        $subject = $this->mergeSubjectService->handle($message);
 
-        return view('sendportal::messages.show', compact('content', 'message'));
+        return view('sendportal::messages.show', compact('content', 'message', 'subject'));
     }
 
     /**
@@ -94,7 +102,7 @@ class MessagesController extends Controller
     public function send(): RedirectResponse
     {
         if (!$message = $this->messageRepo->find(
-            auth()->user()->currentWorkspace()->id,
+            Sendportal::currentWorkspaceId(),
             request('id'),
             ['subscriber']
         )) {
@@ -114,14 +122,47 @@ class MessagesController extends Controller
     }
 
     /**
+     * Send a message.
+     *
+     * @throws Exception
+     */
+    public function delete(): RedirectResponse
+    {
+        if (!$message = $this->messageRepo->find(
+            Sendportal::currentWorkspaceId(),
+            request('id')
+        )) {
+            return redirect()->back()->withErrors(__('Unable to locate that message'));
+        }
+
+        if ($message->sent_at) {
+            return redirect()->back()->withErrors(__('A sent message cannot be deleted'));
+        }
+
+        $this->messageRepo->destroy(
+            Sendportal::currentWorkspaceId(),
+            $message->id
+        );
+
+        return redirect()->route('sendportal.messages.draft')->with(
+            'success',
+            __('The message was deleted')
+        );
+    }
+
+    /**
      * Send multiple messages.
      *
      * @throws Exception
      */
     public function sendSelected(): RedirectResponse
     {
+        if (! request()->has('messages')) {
+            return redirect()->back()->withErrors(__('No messages selected'));
+        }
+
         if (!$messages = $this->messageRepo->getWhereIn(
-            auth()->user()->currentWorkspace()->id,
+            Sendportal::currentWorkspaceId(),
             request('messages'),
             ['subscriber']
         )) {

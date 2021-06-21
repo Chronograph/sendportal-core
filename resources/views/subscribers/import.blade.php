@@ -1,7 +1,7 @@
 @extends('sendportal::layouts.app')
 
 @push('css')
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/css/selectize.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.12/dist/css/bootstrap-select.min.css">
 @endpush
 
 @section('heading')
@@ -10,6 +10,21 @@
 
 @section('content')
 
+    @if (isset($errors) and count($errors->getBags()))
+        <div class="row">
+            <div class="col-lg-6 offset-lg-3">
+                <div class="alert alert-danger">
+                    <ul>
+                        @foreach ($errors->getBags() as $key => $bag)
+                            @foreach($bag->all() as $error)
+                                <li>{{ $key }} - {{ $error }}</li>
+                            @endforeach
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        </div>
+    @endif
 
     @component('sendportal::layouts.partials.card')
         @slot('cardHeader', __('Import via CSV file'))
@@ -39,20 +54,20 @@
             </div>
 
 
-            {!! Form::open(['route' => ['sendportal.subscribers.import.store'], 'class' => 'form-horizontal', 'enctype' => 'multipart/form-data']) !!}
+            <form action="{{ route('sendportal.subscribers.import.store') }}" method="POST" class="form-horizontal" enctype="multipart/form-data">
+                @csrf
 
-            {!! Form::fileField('file', 'File', ['required' => 'required']) !!}
+                <x-sendportal.file-field name="file" :label="__('File')" required="required" />
 
-            <div class="form-group row form-group-subscribers">
-                <label for="id-field-subscribers" class="control-label col-sm-3">{{ __('Segments') }}</label>
-                <div class="col-sm-9">
-                    {!! Form::select('segments[]', $segments, null, ['multiple' => true]) !!}
+                <x-sendportal.select-field name="tags[]" :label="__('Tags')" :options="$tags" multiple />
+
+                <div class="form-group row">
+                    <div class="offset-sm-3 col-sm-9">
+                        <a href="{{ route('sendportal.subscribers.index') }}" class="btn btn-light">{{ __('Back') }}</a>
+                        <button type="submit" class="btn btn-primary">{{ __('Upload') }}</button>
+                    </div>
                 </div>
-            </div>
-
-            {!! Form::submitButton(__('Upload')) !!}
-
-            {!! Form::close() !!}
+            </form>
 
         @endSlot
     @endcomponent
@@ -60,11 +75,5 @@
 @stop
 
 @push('js')
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/js/standalone/selectize.min.js"></script>
-
-    <script>
-        $('select[name="segments[]"]').selectize({
-            plugins: ['remove_button']
-        });
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.13.12/dist/js/bootstrap-select.min.js"></script>
 @endpush

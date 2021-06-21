@@ -17,11 +17,13 @@
         </div>
     </div>
     <div class="card-body">
-        @if ($campaign->status_id === \Sendportal\Base\Models\CampaignStatus::STATUS_QUEUED)
+        @if ($campaign->queued)
             Your campaign is queued and will be sent out soon.
+        @elseif ($campaign->cancelled)
+            Your campaign was cancelled.
         @else
             <i class="fas fa-cog fa-spin"></i>
-            {{ $campaign->formatCount($campaignStats[$campaign->id]['counts']['sent']) }} out of {{ $campaignStats[$campaign->id]['counts']['total'] }} messages sent.
+            {{ $campaignStats[$campaign->id]['counts']['sent'] }} out of {{ $campaignStats[$campaign->id]['counts']['total'] }} messages sent.
         @endif
     </div>
 </div>

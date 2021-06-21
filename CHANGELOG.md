@@ -1,10 +1,47 @@
 # Sendportal Core
 
+## 2.0.1 - 2021-03-08
+
+- Message subject tags ([#114](https://github.com/mettle/sendportal-core/pull/114))
+- Add SMTP driver ([#112](https://github.com/mettle/sendportal-core/pull/112))
+- Split campaigns index ([#111](https://github.com/mettle/sendportal-core/pull/111))
+- Delete failed messages on subscriber deletion ([#110](https://github.com/mettle/sendportal-core/pull/110))
+- Fix rename segments to tags migration ([#115](https://github.com/mettle/sendportal-core/pull/115))
+- Fix table prefixing in raw query ([#107](https://github.com/mettle/sendportal-core/pull/107))
+
+## 2.0.0 - 2021-02-08
+
+- Allow Core to be installed as a package in an existing project ([#85](https://github.com/mettle/sendportal-core/pull/85))
+- Bump Laravel to v8 ([#103](https://github.com/mettle/sendportal-core/pull/103))
+
+## 1.0.10 - 2020-10-15
+
+- Resolve invalid message issue ([#87](https://github.com/mettle/sendportal-core/pull/87))
+
+## 1.0.9 - 2020-10-09
+
+- Set Subscriber unsubscribed_at via API ([#83](https://github.com/mettle/sendportal-core/pull/83))
+- Adjust quota service ([#82](https://github.com/mettle/sendportal-core/pull/82))
+- Ensure template names are unique ([#81](https://github.com/mettle/sendportal-core/pull/81))
+- Gitignore php_cs.cache ([#80](https://github.com/mettle/sendportal-core/pull/80))
+- Validate imported subscribers ([#79](https://github.com/mettle/sendportal-core/pull/79))
+- Added ability to delete draft messages ([#78](https://github.com/mettle/sendportal-core/pull/78))
+- Fix campaign count formatting ([#77](https://github.com/mettle/sendportal-core/pull/77))
+- Make password hidden in setup command ([#76](https://github.com/mettle/sendportal-core/pull/76))
+- Filter subscribers by segment ([#75](https://github.com/mettle/sendportal-core/pull/75))
+- Move ping route to controller ([#73](https://github.com/mettle/sendportal-core/pull/73))
+- Default campaigns to send to all ([#71](https://github.com/mettle/sendportal-core/pull/71))
+- Validate segments when creating a campaign ([#70](https://github.com/mettle/sendportal-core/pull/70))
+- Add GUI setup process ([#68](https://github.com/mettle/sendportal-core/pull/68))
+- Clean up template deletion ([#67](https://github.com/mettle/sendportal-core/pull/67))
+- Add ability to cancel campaigns ([#66](https://github.com/mettle/sendportal-core/pull/66))
+- Add backslash to language files ([#65](https://github.com/mettle/sendportal-core/pull/65))
+
 ## 1.0.7 - 2020-08-14
 
-- Add ability to test an e-mail service ([#62](https://github.com/mettle/sendportal-core/pull/62))
-- Fix behaviour that removed subscribers on segment update ([#61](https://github.com/mettle/sendportal-core/pull/61))
 - Add ability to delete a subscriber ([#60](https://github.com/mettle/sendportal-core/pull/60))
+- Fix behaviour that removed subscribers on segment update ([#61](https://github.com/mettle/sendportal-core/pull/61))
+- Add ability to test an e-mail service ([#62](https://github.com/mettle/sendportal-core/pull/62))
 
 ## 1.0.6 - 2020-08-07
 

@@ -6,11 +6,14 @@ namespace Sendportal\Base\Models;
 
 class EmailServiceType extends BaseModel
 {
+    protected $table = 'sendportal_email_service_types';
+
     public const SES = 1;
     public const SENDGRID = 2;
     public const MAILGUN = 3;
     public const POSTMARK = 4;
     public const MAILJET = 5;
+    public const SMTP = 6;
 
     /** @var array */
     protected static $types = [
@@ -19,6 +22,7 @@ class EmailServiceType extends BaseModel
         self::MAILGUN => 'Mailgun',
         self::POSTMARK => 'Postmark',
         self::MAILJET => 'Mailjet',
+        self::SMTP => 'SMTP',
     ];
 
     /**

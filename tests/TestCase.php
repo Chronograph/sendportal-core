@@ -1,12 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests;
 
-use Collective\Html\FormFacade;
-use Laravel\Ui\UiServiceProvider;
+use Illuminate\Support\Str;
 use Orchestra\Testbench\TestCase as BaseTestCase;
-use Sendportal\Base\Models\User;
 use Sendportal\Base\SendportalBaseServiceProvider;
+use Sendportal\Base\Services\Messages\RelayMessage;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -16,11 +17,11 @@ abstract class TestCase extends BaseTestCase
      * @param \Illuminate\Foundation\Application $app
      * @return array
      */
-    protected function getPackageProviders($app)
+    protected function getPackageProviders($app): array
     {
         return [
-            UiServiceProvider::class,
-            SendportalBaseServiceProvider::class
+            SendportalBaseServiceProvider::class,
+            SendportalTestServiceProvider::class,
         ];
     }
 
@@ -33,30 +34,22 @@ abstract class TestCase extends BaseTestCase
 
         $this->withoutMix();
         $this->withExceptionHandling();
-        $this->withFactories(__DIR__ . '/../database/factories');
+        $this->mockRelayMessageService();
 
         $this->artisan('migrate')->run();
     }
 
     /**
-     * Define environment setup.
-     *
-     * @param  \Illuminate\Foundation\Application  $app
      * @return void
      */
-    protected function getEnvironmentSetUp($app)
+    protected function mockRelayMessageService(): void
     {
-        $app['config']->set('auth.providers.users.model', User::class);
-    }
+        $service = $this->getMockBuilder(RelayMessage::class)
+            ->disableOriginalConstructor()
+            ->getMock();
 
-    /**
-     * @param \Illuminate\Foundation\Application $app
-     * @return array
-     */
-    protected function getPackageAliases($app)
-    {
-        return [
-            'Form' => FormFacade::class
-        ];
+        $service->method('handle')->willReturn(Str::random());
+
+        app()->instance(RelayMessage::class, $service);
     }
 }
